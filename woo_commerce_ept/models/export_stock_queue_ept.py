@@ -130,19 +130,12 @@ class WooExportStockQueueEpt(models.Model):
         @author: Yagnik Joshi @Emipro Technologies Pvt.Ltd on date 31-Aug-2022.
         Task Id : 201222
         """
-        exists_export_stock_queue_line = self.env["woo.export.stock.queue.line.ept"].search(
-            [('woo_tmpl_id', '=', data.get('woo_tmpl_id')),
-             ("woo_instance_id", '=', instance.id),
-             ("state", "=", "draft")])
-        if not exists_export_stock_queue_line:
-            export_stock_queue_line_vals = {
-                "woo_instance_id": instance and instance.id or False,
-                "batch_details": data.get('batch_details'),
-                "woo_tmpl_id": data.get('woo_tmpl_id'),
-                "product_type": data.get('product_type'),
-                "export_stock_queue_id": export_stock_queue and export_stock_queue.id or False
-            }
-            self.env['woo.export.stock.queue.line.ept'].create(export_stock_queue_line_vals)
-        else:
-            exists_export_stock_queue_line.write({'batch_details': data.get('batch_details')})
+        export_stock_queue_line_vals = {
+            "woo_instance_id": instance and instance.id or False,
+            "batch_details": data.get('batch_details'),
+            "woo_tmpl_id": data.get('woo_tmpl_id'),
+            "product_type": data.get('product_type'),
+            "export_stock_queue_id": export_stock_queue and export_stock_queue.id or False
+        }
+        self.env['woo.export.stock.queue.line.ept'].create(export_stock_queue_line_vals)
         return True
