@@ -307,10 +307,12 @@ class WooCouponEpt(models.Model):
             data = coupon_data[:100]
             if data:
                 coupon_data_queue = woo_coupon_data_queue_obj.create(vals)
-                coupon_queues.append(coupon_data_queue.id)
                 _logger.info("New coupon queue %s created.", coupon_data_queue.name)
                 coupon_data_queue.create_woo_data_queue_lines(data)
-                _logger.info("Lines added in Coupon queue %s.", coupon_data_queue.name)
+                if not coupon_data_queue.coupon_data_queue_line_ids:
+                    coupon_data_queue.unlink()
+                else:
+                    coupon_queues.append(coupon_data_queue.id)
                 del coupon_data[:100]
         _logger.info("Import coupon process completed.")
         return coupon_queues
