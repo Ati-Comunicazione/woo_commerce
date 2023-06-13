@@ -19,6 +19,7 @@
                             <field name="woo_order_number" readonly="1"/>
                             <field name="woo_instance_id" readonly="1" string="WooCommerce Instance"/>
                             <field name="woo_status" readonly="1" string="WooCommerce Status"/>
+                            <field name="woo_order_note" readonly="True"/>
                         </group>
                         <group>
                             <field name="woo_trans_id" attrs="{'invisible':[('woo_trans_id','=','')]}" readonly="True"/>
