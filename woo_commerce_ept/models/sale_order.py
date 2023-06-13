@@ -77,6 +77,7 @@ class SaleOrder(models.Model):
                                    ("cancelled", "Cancelled"), ("refunded", "Refunded")], copy=False, tracking=7)
     is_service_woo_order = fields.Boolean(default=False, help="It uses to identify that sale order contains all "
                                                               "products as service type.")
+    woo_order_note = fields.Text(string='WooCommerce Order Note')
 
     _sql_constraints = [('_woo_sale_order_unique_constraint', 'unique(woo_order_id,woo_instance_id,woo_order_number)',
                          "Woocommerce order must be unique")]
@@ -96,16 +97,19 @@ class SaleOrder(models.Model):
             data = orders_data[:50]
             if data:
                 order_data_queue = order_data_queue_obj.create(vals)
-                order_queues_list += order_data_queue
                 _logger.info("New order queue %s created.", order_data_queue.name)
                 order_data_queue.create_woo_data_queue_lines(data)
-                _logger.info("Lines added in Order queue %s.", order_data_queue.name)
+                if order_data_queue.order_data_queue_line_ids:
+                    order_queues_list += order_data_queue
+                    _logger.info("Lines added in Order queue %s.", order_data_queue.name)
+                    message = "Order Queue created %s" % order_data_queue.name
+                    bus_bus_obj.sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id),
+                                        {'type': 'simple_notification',
+                                         'title': 'WooCommerce Connector', 'message': message,
+                                         'sticky': False, 'warning': True})
+                else:
+                    order_data_queue.unlink()
                 del orders_data[:50]
-                message = "Order Queue created %s" % order_data_queue.name
-                bus_bus_obj.sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id),
-                                    {'type': 'simple_notification',
-                                     'title': 'WooCommerce Connector', 'message': message,
-                                     'sticky': False, 'warning': True})
                 self._cr.commit()
 
         return order_queues_list
@@ -392,7 +396,7 @@ class SaleOrder(models.Model):
         payment_gateway_id = workflow_config.woo_payment_gateway_id.id if workflow_config.woo_payment_gateway_id else \
             False
         vals = {
-            "note": order_data.get("customer_note"),
+            "woo_order_note": order_data.get("customer_note"),
             "woo_order_id": order_data.get("id"),
             "woo_order_number": woo_order_number,
             "woo_instance_id": woo_instance.id,
@@ -775,7 +779,6 @@ class SaleOrder(models.Model):
             status_code = 'completed'
         return status_code
 
-
     def woo_prepare_tax_data(self, tax_line_data, rate_percent, woo_taxes, queue_line, common_log_book_id,
                              woo_instance, order_data):
         """
@@ -1017,14 +1020,14 @@ class SaleOrder(models.Model):
             workflow_config = sale_auto_workflow_obj.search([("woo_instance_id", "=", woo_instance.id),
                                                              ("woo_financial_status", "=", financial_status),
                                                              ("woo_payment_gateway_id", "=", payment_gateway.id),
-                                                             ("woo_order_status", "=", status_code)],limit=1)
+                                                             ("woo_order_status", "=", status_code)], limit=1)
         elif no_payment_gateway:
             payment_gateway = woo_payment_gateway_obj.search([("code", "=", "no_payment_method"),
                                                               ("woo_instance_id", "=", woo_instance.id)])
             workflow_config = sale_auto_workflow_obj.search([("woo_instance_id", "=", woo_instance.id),
                                                              ("woo_financial_status", "=", financial_status),
                                                              ("woo_payment_gateway_id", "=", payment_gateway.id),
-                                                             ("woo_order_status", "=", status_code)],limit=1)
+                                                             ("woo_order_status", "=", status_code)], limit=1)
         else:
             message = """- System could not find the payment gateway response from WooCommerce store.
             - The response received from Woocommerce store was Empty. Woo Order number: %s""", order_data.get("number")
@@ -1034,11 +1037,11 @@ class SaleOrder(models.Model):
         if not workflow_config:
             message = """- Automatic order process workflow configuration not found for this order %s.
             - System tries to find the workflow based on combination of Payment Gateway(such as Manual, Credit Card, 
-            Paypal etc.) and Financial Status(such as Paid,Pending,Authorised etc.).
-            - In this order Payment Gateway is %s and Financial Status is %s.
+            Paypal etc.) and Financial Status(such as Paid,Pending,Authorised etc.) and Order Status(such as Processing,Pending Payment,On Hold,Completed etc.).
+            - In this order Payment Gateway is %s and Financial Status is %s and Order Status is %s.
             - You can configure the Automatic order process workflow under the menu Woocommerce > Configuration > 
             Financial Status.""" % (
-                order_data.get("number"), order_data.get("payment_method_title", ""), financial_status)
+                order_data.get("number"), order_data.get("payment_method_title", ""), financial_status, status_code)
             self.create_woo_log_lines(message, common_log_book_id, queue_line)
             return False
         workflow = workflow_config.woo_auto_workflow_id
