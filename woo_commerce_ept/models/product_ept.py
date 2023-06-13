@@ -279,16 +279,14 @@ class WooProductTemplateEpt(models.Model):
                      'product_type': 'simple'})
 
         # For Variable products.
-        variable_products = woo_templates.filtered(lambda x: x.woo_product_type == 'variable')
-        if variable_products:
-            for template in variable_products:
-                variations = self.prepare_variable_batch_export_stock_data(template, product_stock)
-                if variations:
-                    variant_batches = self.prepare_batches(variations)
-                    queue_data.append(
-                        {'batch_details': variant_batches,
-                         'woo_tmpl_id': template.woo_tmpl_id,
-                         'product_type': 'variable'})
+        for template in woo_templates.filtered(lambda x: x.woo_product_type == 'variable'):
+            variations = self.prepare_variable_batch_export_stock_data(template, product_stock)
+            if variations:
+                variant_batches = self.prepare_batches(variations)
+                queue_data.append(
+                    {'batch_details': variant_batches,
+                     'woo_tmpl_id': template.woo_tmpl_id,
+                     'product_type': 'variable'})
 
         if queue_data:
             queue_ids = export_stock_obj.create_woo_export_stock_queue(instance, queue_data)
@@ -2384,7 +2382,8 @@ class WooProductTemplateEpt(models.Model):
                                       "and Instance Configuration.\n\n" + str(error)))
                 _logger.info('variations batch process completed [status: %s]', res.status_code)
                 if res.status_code in [200, 201]:
-                    del data['variations']
+                    if data.get("variations"):
+                        del data['variations']
                 if res.status_code not in [200, 201]:
                     message = "Update Product Variations\n%s" % res.content
                     common_log_line_obj.woo_product_export_log_line(message, model_id, common_log_id, False)
