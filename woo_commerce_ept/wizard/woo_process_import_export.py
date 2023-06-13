@@ -784,12 +784,15 @@ class WooProcessImportExport(models.TransientModel):
                 # queue_ids = export_stock_queue_id.ids
                 queue_ids = export_stock_queue_id
                 export_stock_data_queue = export_stock_data_obj.browse(queue_ids)
-                export_stock_data_queue.export_stock_queue_line_ids.process_export_stock_queue_data()
-                _logger.info(
-                    "Processed export stock queue : %s of Instance : %s Via Selective Successfully .",
-                    export_stock_data_queue.name, instance.name)
                 if not export_stock_data_queue.export_stock_queue_line_ids:
                     export_stock_data_queue.unlink()
+                    return True
+                # export_stock_data_queue.export_stock_queue_line_ids.process_export_stock_queue_data()
+                # _logger.info(
+                #     "Processed export stock queue : %s of Instance : %s Via Selective Successfully .",
+                #     export_stock_data_queue.name, instance.name)
+                # if not export_stock_data_queue.export_stock_queue_line_ids:
+                #     export_stock_data_queue.unlink()
                 action_name = "woo_commerce_ept.action_woo_export_stock_queue"
                 form_view_name = "woo_commerce_ept.woo_export_stock_form_view_ept"
                 if queue_ids and action_name and form_view_name:
